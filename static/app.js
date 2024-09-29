@@ -1,14 +1,12 @@
 let dataset = [];
-let clusters = [];
 let centroids = [];
-let initMethod = 'random';
-let k = 3; 
-let isManualSelected = false;
+let clusters = [];
+let initialMethod = 'random';
+let k = 3; // Set k = 3 at the beginning
+let manualCentroidSelection = false; 
 
-
-// Generate a new dataset (always 100 points)
-function generateDataset() {
-    k = document.getElementById('k-value').value;  // Get the number of clusters (k) from the input box
+function generateNewDataset() {
+    k = document.getElementById('k-value').value;  
 
     fetch('/generate_dataset', {
         method: 'POST',
@@ -20,15 +18,15 @@ function generateDataset() {
         console.log('Dataset generated:', data.dataset);
         dataset = data.dataset;  // Store the dataset globally
         makePlot(dataset);  // Plot the dataset only, do not run KMeans
-        manualCentroids();  // Ensure the listener is attached every time after plot re-rendering
+        selectCentroidsManual();  // Ensure the listener is attached every time after plot re-rendering
     })
     .catch(error => console.error('Error generating dataset:', error));
 }
 
 // Enable manual centroid selection by clicking on the plot
-function manualCentroids() {
+function selectCentroidsManual() {
     centroids = [];  // Clear any previous centroids
-    isManualSelected = true;  // Enable manual centroid selection
+    manualCentroidSelection = true;  // Enable manual centroid selection
     console.log('Manual centroid selection enabled.');
 
     let plotDiv = document.getElementById('plot');  // Get the plot div
@@ -42,10 +40,6 @@ function manualCentroids() {
     // Plotly.purge(plotDiv);  // Clear the plot before re-rendering
     makePlot(dataset);  // Re-draw the plot with the dataset
 
-    // // Attach a simple listener to log clicks
-    // plotDiv.on('plotly_click', function(data) {
-    //     console.log(`Clicked on plot at: (${data.points[0].x}, ${data.points[0].y})`);
-    // });
 }
 
 function attachClickListener(plotDiv) {
@@ -54,7 +48,6 @@ function attachClickListener(plotDiv) {
         // Get the clicked coordinates
         let x = data.points[0].x;
         let y = data.points[0].y;
-
         // Add the selected point as a centroid if it's not already selected
         if (centroids.length < k) {
             centroids.push([x, y]);
@@ -65,7 +58,7 @@ function attachClickListener(plotDiv) {
 
             // Notify user once all centroids are selected
             if (centroids.length === k) {
-                alert('You have selected all centroids. You can now run KMeans.');
+                alert('All centroids have been selected. Please press on KMeans.');
             }
         } else {
             alert('Centroid selection limit reached.');
@@ -73,15 +66,17 @@ function attachClickListener(plotDiv) {
         });
 }
 
+
 function runKMeans() {
     let k = parseInt(document.getElementById('k-value').value);  // Get the number of clusters (k)
-    let initMethod = document.getElementById('init-method').value;
+    let initialMethod = document.getElementById('init-method').value;
 
-    console.log('Initialization method:', initMethod);
+    console.log('Initialization method:', initialMethod);
     console.log('Manual centroids (if applicable):', centroids);
+    console.log('Number of clusters (k):', k);
 
     // Ensure all centroids are selected for manual method
-    if (initMethod === 'manual' && centroids.length !== k) {
+    if (initialMethod === 'manual' && centroids.length !== k) {
         alert(`Please select exactly ${k} centroids manually before running KMeans.`);
         return;  // Do not proceed if the centroids are not correctly selected
     }
@@ -92,7 +87,7 @@ function runKMeans() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             k: k,
-            init_method: initMethod,
+            init_method: initialMethod,
             manual_centroids: centroids  // Pass manual centroids if selected
         })
     })
@@ -116,15 +111,15 @@ function runKMeans() {
 
 function runUntilConvergence() {
     let k = parseInt(document.getElementById('k-value').value);  // Get the number of clusters (k)
-    let initMethod = document.getElementById('init-method').value;
+    let initialMethod = document.getElementById('init-method').value;
 
     fetch('/step_kmeans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             k: k,
-            init_method: initMethod,
-            manual_centroids: initMethod === 'manual' ? centroids : []  // Pass manual centroids if necessary
+            init_method: initialMethod,
+            manual_centroids: initialMethod === 'manual' ? centroids : []  // Pass manual centroids if necessary
         })
     })
     .then(response => response.json())
@@ -148,12 +143,16 @@ function runUntilConvergence() {
 
 // Step through KMeans one iteration at a time
 function stepThroughKMeans() {
+    let k = parseInt(document.getElementById('k-value').value);  // Get the number of clusters (k)
+    let initialMethod = document.getElementById('init-method').value;
+
     fetch('/step_kmeans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             k: k,
-            init_method: initMethod
+            init_method: initialMethod,
+            manual_centroids: initialMethod === 'manual' ? centroids : []  // Pass manual centroids if necessary
         })
     })
     .then(response => response.json())
@@ -173,7 +172,7 @@ function stepThroughKMeans() {
 
 function makePlot(dataset = [], centroids = [], clusters = []) {
     let traces = [];
-    const colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f']; // Distinct colors
+    const colors = ['blue', 'green', 'orange', 'purple', 'pink', 'yellow', 'cyan', 'magenta']; // Add more colors if needed
 
     // Plot the clustered dataset points
     if (clusters.length > 0) {
@@ -184,12 +183,7 @@ function makePlot(dataset = [], centroids = [], clusters = []) {
                 y: clusterPoints.map(point => point[1]),  // Y-coordinates of points
                 mode: 'markers',
                 type: 'scatter',
-                marker: { 
-                    size: 10, 
-                    color: colors[i % colors.length], 
-                    opacity: 0.8, 
-                    line: { width: 1, color: '#fff' }  // White outline for better visibility
-                },
+                marker: { size: 8, color: colors[i % colors.length] },  // Cycle through color array
                 name: `Cluster ${i + 1}`
             };
             traces.push(clusterTrace);
@@ -201,12 +195,7 @@ function makePlot(dataset = [], centroids = [], clusters = []) {
             y: dataset.map(point => point[1]),  // Extract y-coordinates
             mode: 'markers',
             type: 'scatter',
-            marker: { 
-                size: 10, 
-                color: '#007BFF',  // Use a vibrant blue
-                opacity: 1, 
-                line: { width: 1, color: '#fff' }
-            },
+            marker: { size: 8, color: 'blue' },  // Data points are blue by default
             name: 'Data Points'
         };
         traces.push(dataTrace);
@@ -219,49 +208,21 @@ function makePlot(dataset = [], centroids = [], clusters = []) {
             y: centroids.map(point => point[1]),  // Y-coordinates of centroids
             mode: 'markers',
             type: 'scatter',
-            marker: { 
-                size: 14, 
-                color: '#FF5733',  // Bright color for centroids
-                symbol: 'cross', 
-                opacity: 1, 
-                line: { width: 2, color: '#fff' }
-            },
+            marker: { size: 12, color: 'red', symbol: 'x' },  // Centroids are red Xs
             name: 'Centroids'
         };
         traces.push(centroidTrace);
     }
 
     let layout = {
-        title: {
-            text: `KMeans Clustering (k = ${k} Clusters)`,
-            font: { size: 24 }
-        },
-        xaxis: { 
-            title: 'X Axis', 
-            titlefont: { size: 18 },
-            tickfont: { size: 14 }
-        },
-        yaxis: { 
-            title: 'Y Axis', 
-            titlefont: { size: 18 },
-            tickfont: { size: 14 }
-        },
-        plot_bgcolor: '#f9f9f9',  // Light background for contrast
-        paper_bgcolor: '#f9f9f9',  // Match paper background
-        showlegend: true,
-        legend: {
-            orientation: 'h',
-            yanchor: 'bottom',
-            y: 1.02,
-            xanchor: 'center',
-            x: 0.5
-        }
+        title: `KMeans Clustering (k = ${k} Clusters)`,
+        xaxis: { title: 'X Axis' },
+        yaxis: { title: 'Y Axis' }
     };
 
     // Update the plot without recreating it
     Plotly.react('plot', traces, layout);
 }
-
 
 
 function clearPlot() {
@@ -270,7 +231,7 @@ function clearPlot() {
 }
 
 function resetAlgorithm() {
-    console.log('Reset Button Used');
+    console.log('Reset clicked');
 
     fetch('/reset', {
         method: 'POST',
@@ -280,18 +241,16 @@ function resetAlgorithm() {
     .then(data => {
         if (data.status === 'reset') {
             console.log('State has been reset');
-            
             // Clear frontend state (centroids, clusters)
             centroids = [];
             clusters = [];
 
             // Log the dataset returned by the backend
-            console.log('Dataset after reset:', data.dataset);
+            console.log('Dataset after reset:', data.dataset);  // Debugging log to ensure dataset is received
             
             // Check if dataset is properly defined before using it
             if (data.dataset && data.dataset.length > 0) {
                 dataset = data.dataset;  // Assign the dataset from the backend to the global variable
-                clearPlot(); // Clear existing plot
                 makePlot(dataset);  // Re-plot the dataset (without centroids or clusters)
             } else {
                 console.error('No dataset returned from the server after reset.');
@@ -301,42 +260,44 @@ function resetAlgorithm() {
     .catch(error => console.error('Error during reset:', error));
 }
 
+
+
 document.addEventListener('DOMContentLoaded', function () {
     console.log('DOM fully loaded and parsed');
 
+    // Attach event listeners
     document.getElementById('generate-dataset').addEventListener('click', function() {
-        console.log('Generate Dataset button used');
-        generateDataset();
+        console.log('Generate Dataset clicked');
+        generateNewDataset();
     });
 
     document.getElementById('run-kmeans').addEventListener('click', function() {
-        console.log('Run KMeans button used');
+        console.log('Run KMeans clicked');
         runKMeans();
     });
 
     document.getElementById('step-through').addEventListener('click', function() {
-        console.log('Step Through KMeans button used');
+        console.log('Step Through KMeans clicked');
         stepThroughKMeans();
     });
 
     document.getElementById('reset').addEventListener('click', function() {
-        console.log('Reset button used');
+        console.log('Reset clicked');
         resetAlgorithm();
     });
 
     document.getElementById('init-method').addEventListener('change', function() {
-        initMethod = document.getElementById('init-method').value;
-        console.log('Initialization method changed to:', initMethod);
+        initialMethod = document.getElementById('init-method').value;
+        console.log('Initialization method changed to:', initialMethod);
 
-        if (initMethod === 'manual') {
-            isManualSelected = true;
-            manualCentroids();  // Enable manual centroid selection when manual is chosen
+        if (initialMethod === 'manual') {
+            manualCentroidSelection = true;
+            selectCentroidsManual();  // Enable manual centroid selection when manual is chosen
         } else {
-            isManualSelected = false;
+            manualCentroidSelection = false;
             console.log('Manual centroid selection disabled.');
         }
     });
 
-    generateDataset(); // Always generate a new dataset on load
+    generateNewDataset(); // Always generate a new dataset on load
 });
-
