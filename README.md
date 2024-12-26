@@ -64,17 +64,4 @@ This interactive web application provides the following functionality:
 - **Backend**: Flask (or a similar Python-based framework) to handle the server-side logic, if applicable.
 - **Algorithm**: Implemented the KMeans clustering algorithm from scratch in Python (no external clustering libraries used).
 
-## Evaluation Criteria
-Your project will be evaluated based on the following:
-- **Functionality**: All required features must be implemented and work as expected.
-- **Code Quality**: Clean, readable, and maintainable code.
-- **UI/UX**: The user interface should be intuitive and visually appealing.
-- **Makefile**: The `make` commands should run correctly, setting up and running the project seamlessly.
-
-## Submission
-- **Demo Video**: Include a demo video showcasing the functionality of the application on your portfolio site. Alternatively, you can link to a YouTube video.
-- **GitHub Repository**: Submit the link to the repository with your code and demo video.
-
-## Conclusion
-This project demonstrates an interactive approach to visualizing KMeans clustering and provides an in-depth look at the effects of different centroid initialization methods. The web application is designed to allow users to experiment with various settings, offering a clear and engaging learning experience.
 
